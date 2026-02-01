@@ -1,0 +1,28 @@
+{
+  "name": "devtrack",
+  "version": "1.0.0",
+  "description": "DevTrack - Agile Ticket Tracking System",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "db:migrate": "cd apps/api && npx prisma migrate dev",
+    "db:generate": "cd apps/api && npx prisma generate",
+    "db:studio": "cd apps/api && npx prisma studio",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.4"
+  },
+  "packageManager": "npm@10.2.4",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
