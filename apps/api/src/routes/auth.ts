@@ -1,12 +1,18 @@
-import { Router } from 'express'
+import { Router, Request, Response } from 'express'
 import bcrypt from 'bcrypt'
-import jwt from 'jsonwebtoken'
+import jwt, { type Secret } from 'jsonwebtoken'
+import type { StringValue } from 'ms'
 import { PrismaClient } from '@prisma/client'
 import { body, validationResult } from 'express-validator'
 import { asyncHandler } from '../middleware/errorHandler'
 
 const router = Router()
 const prisma = new PrismaClient()
+
+const JWT_SECRET = process.env.JWT_SECRET as Secret
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET as Secret
+const JWT_ACCESS_EXPIRATION = (process.env.JWT_ACCESS_EXPIRATION || '15m') as StringValue
+const JWT_REFRESH_EXPIRATION = (process.env.JWT_REFRESH_EXPIRATION || '7d') as StringValue
 
 // Validation middleware
 const registerValidation = [
@@ -55,15 +61,15 @@ router.post(
     // Generate JWT
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET!,
-      { expiresIn: process.env.JWT_ACCESS_EXPIRATION || '15m' }
+      JWT_SECRET,
+      { expiresIn: JWT_ACCESS_EXPIRATION }
     )
 
     // Generate refresh token
     const refreshToken = jwt.sign(
       { userId: user.id },
-      process.env.JWT_REFRESH_SECRET!,
-      { expiresIn: process.env.JWT_REFRESH_EXPIRATION || '7d' }
+      JWT_REFRESH_SECRET,
+      { expiresIn: JWT_REFRESH_EXPIRATION }
     )
 
     res.status(201).json({
@@ -115,15 +121,15 @@ router.post(
     // Generate JWT
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET!,
-      { expiresIn: process.env.JWT_ACCESS_EXPIRATION || '15m' }
+      JWT_SECRET,
+      { expiresIn: JWT_ACCESS_EXPIRATION }
     )
 
     // Generate refresh token
     const refreshToken = jwt.sign(
       { userId: user.id },
-      process.env.JWT_REFRESH_SECRET!,
-      { expiresIn: process.env.JWT_REFRESH_EXPIRATION || '7d' }
+      JWT_REFRESH_SECRET,
+      { expiresIn: JWT_REFRESH_EXPIRATION }
     )
 
     res.json({
@@ -150,7 +156,7 @@ router.post(
     }
 
     try {
-      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as {
+      const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as {
         userId: string
       }
 
@@ -165,8 +171,8 @@ router.post(
 
       const newToken = jwt.sign(
         { userId: user.id, email: user.email, role: user.role },
-        process.env.JWT_SECRET!,
-        { expiresIn: process.env.JWT_ACCESS_EXPIRATION || '15m' }
+        JWT_SECRET,
+        { expiresIn: JWT_ACCESS_EXPIRATION }
       )
 
       res.json({ token: newToken })

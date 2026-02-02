@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { api } from '../../api/client'
 import { User } from '../../types'
 
@@ -18,10 +18,15 @@ const initialState: AuthState = {
   error: null,
 }
 
+interface AuthResponse {
+  token: string
+  user: User
+}
+
 export const login = createAsyncThunk(
   'auth/login',
-  async (credentials: { email: string; password: string }) => {
-    const response = await api.post('/auth/login', credentials)
+  async (credentials: { email: string; password: string }): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/login', credentials)
     localStorage.setItem('token', response.data.token)
     return response.data
   }
@@ -29,8 +34,8 @@ export const login = createAsyncThunk(
 
 export const register = createAsyncThunk(
   'auth/register',
-  async (data: { email: string; password: string; name: string }) => {
-    const response = await api.post('/auth/register', data)
+  async (data: { email: string; password: string; name: string }): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/register', data)
     localStorage.setItem('token', response.data.token)
     return response.data
   }
@@ -38,8 +43,8 @@ export const register = createAsyncThunk(
 
 export const fetchCurrentUser = createAsyncThunk(
   'auth/fetchCurrentUser',
-  async () => {
-    const response = await api.get('/users/me')
+  async (): Promise<User> => {
+    const response = await api.get<User>('/users/me')
     return response.data
   }
 )

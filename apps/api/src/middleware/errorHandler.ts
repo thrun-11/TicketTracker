@@ -1,9 +1,10 @@
 import { Request, Response, NextFunction } from 'express'
-import { Prisma } from '@prisma/client'
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library'
 
 export interface AppError extends Error {
   statusCode?: number
   isOperational?: boolean
+  code?: string
 }
 
 export const errorHandler = (
@@ -15,7 +16,7 @@ export const errorHandler = (
   console.error('Error:', err)
 
   // Prisma errors
-  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+  if (err instanceof PrismaClientKnownRequestError) {
     if (err.code === 'P2002') {
       return res.status(409).json({
         message: 'A record with this information already exists',
@@ -66,7 +67,9 @@ export const createError = (message: string, statusCode: number): AppError => {
   return error
 }
 
-export const asyncHandler = (fn: Function) => {
+type AsyncRequestHandler = (req: Request, res: Response, next: NextFunction) => Promise<unknown>
+
+export const asyncHandler = (fn: AsyncRequestHandler) => {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next)
   }

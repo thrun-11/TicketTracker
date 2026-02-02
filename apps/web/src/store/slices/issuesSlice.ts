@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import { api } from '../../api/client'
-import { Issue } from '../../types'
+import { Issue, IssueStatus } from '../../types'
 
 interface IssuesState {
   issues: Issue[]
@@ -18,24 +18,24 @@ const initialState: IssuesState = {
 
 export const fetchIssues = createAsyncThunk(
   'issues/fetchIssues',
-  async (projectId: string) => {
-    const response = await api.get(`/projects/${projectId}/issues`)
+  async (projectId: string): Promise<Issue[]> => {
+    const response = await api.get<Issue[]>(`/projects/${projectId}/issues`)
     return response.data
   }
 )
 
 export const createIssue = createAsyncThunk(
   'issues/createIssue',
-  async ({ projectId, data }: { projectId: string; data: Partial<Issue> }) => {
-    const response = await api.post(`/projects/${projectId}/issues`, data)
+  async ({ projectId, data }: { projectId: string; data: Partial<Issue> }): Promise<Issue> => {
+    const response = await api.post<Issue>(`/projects/${projectId}/issues`, data)
     return response.data
   }
 )
 
 export const updateIssue = createAsyncThunk(
   'issues/updateIssue',
-  async ({ issueId, data }: { issueId: string; data: Partial<Issue> }) => {
-    const response = await api.put(`/issues/${issueId}`, data)
+  async ({ issueId, data }: { issueId: string; data: Partial<Issue> }): Promise<Issue> => {
+    const response = await api.put<Issue>(`/issues/${issueId}`, data)
     return response.data
   }
 )
@@ -47,7 +47,7 @@ const issuesSlice = createSlice({
     setCurrentIssue: (state, action: PayloadAction<Issue | null>) => {
       state.currentIssue = action.payload
     },
-    updateIssueStatus: (state, action: PayloadAction<{ issueId: string; status: string }>) => {
+    updateIssueStatus: (state, action: PayloadAction<{ issueId: string; status: IssueStatus }>) => {
       const issue = state.issues.find(i => i.id === action.payload.issueId)
       if (issue) {
         issue.status = action.payload.status

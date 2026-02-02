@@ -18,16 +18,16 @@ const initialState: ProjectsState = {
 
 export const fetchProjects = createAsyncThunk(
   'projects/fetchProjects',
-  async () => {
-    const response = await api.get('/projects')
+  async (): Promise<Project[]> => {
+    const response = await api.get<Project[]>('/projects')
     return response.data
   }
 )
 
 export const createProject = createAsyncThunk(
   'projects/createProject',
-  async (data: Partial<Project>) => {
-    const response = await api.post('/projects', data)
+  async (data: Partial<Project>): Promise<Project> => {
+    const response = await api.post<Project>('/projects', data)
     return response.data
   }
 )
