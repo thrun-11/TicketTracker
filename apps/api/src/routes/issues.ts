@@ -8,7 +8,31 @@ import { io } from '../server'
 const router = Router()
 const prisma = new PrismaClient()
 
-// Get issue by ID
+router.get(
+  '/',
+  asyncHandler(async (req: AuthRequest, res) => {
+    const { projectId } = req.query
+
+    const issues = await prisma.issue.findMany({
+      where: projectId ? { projectId: projectId as string } : undefined,
+      include: {
+        assignee: {
+          select: { id: true, name: true, avatar: true },
+        },
+        creator: {
+          select: { id: true, name: true, avatar: true },
+        },
+        comments: {
+          select: { id: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    res.json(issues)
+  })
+)
+
 router.get(
   '/:id',
   asyncHandler(async (req: AuthRequest, res) => {
@@ -18,27 +42,18 @@ router.get(
         assignee: {
           select: { id: true, name: true, avatar: true },
         },
-        reporter: {
+        creator: {
           select: { id: true, name: true, avatar: true },
         },
-        labels: true,
-        sprint: true,
         comments: {
-          include: {
-            author: {
-              select: { id: true, name: true, avatar: true },
-            },
-          },
-          orderBy: { createdAt: 'asc' },
-        },
-        attachments: true,
-        watchers: {
           include: {
             user: {
               select: { id: true, name: true, avatar: true },
             },
           },
         },
+        parent: true,
+        subIssues: true,
       },
     })
 
@@ -50,174 +65,107 @@ router.get(
   })
 )
 
-// Create issue
-router.post(
-  '/',
-  [
-    body('title').trim().notEmpty().withMessage('Title is required'),
-    body('projectId').notEmpty().withMessage('Project ID is required'),
-    body('type').isIn(['epic', 'story', 'task', 'bug', 'subtask']).withMessage('Invalid type'),
-  ],
+router.get(
+  '/:id/comments',
   asyncHandler(async (req: AuthRequest, res) => {
-    const {
-      title,
-      description,
-      type,
-      priority = 'medium',
-      projectId,
-      assigneeId,
-      sprintId,
-      parentId,
-      storyPoints,
-      dueDate,
-      labelIds,
-    } = req.body
-
-    // Get project to find default status
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      select: {
-        workflowId: true,
-        key: true,
-        _count: { select: { issues: true } },
-      },
-    })
-
-    if (!project) {
-      return res.status(404).json({ message: 'Project not found' })
-    }
-
-    // Get default status (To Do)
-    const workflowState = await prisma.workflowState.findFirst({
-      where: {
-        workflowId: project.workflowId,
-        category: 'todo',
-      },
-      orderBy: { order: 'asc' },
-    })
-
-    const issueNumber = project._count.issues + 1
-
-    const issue = await prisma.issue.create({
-      data: {
-        title,
-        description,
-        type,
-        priority,
-        projectId,
-        reporterId: req.user!.id,
-        assigneeId,
-        sprintId,
-        parentId,
-        storyPoints,
-        dueDate: dueDate ? new Date(dueDate) : undefined,
-        status: workflowState?.name || 'To Do',
-        key: `${project.key}-${issueNumber}`,
-        labels: labelIds ? { connect: labelIds.map((id: string) => ({ id })) } : undefined,
-        watchers: {
-          create: {
-            userId: req.user!.id,
-          },
-        },
-      },
+    const comments = await prisma.comment.findMany({
+      where: { issueId: req.params.id },
       include: {
-        assignee: {
+        user: {
           select: { id: true, name: true, avatar: true },
         },
-        reporter: {
-          select: { id: true, name: true, avatar: true },
-        },
-        labels: true,
       },
+      orderBy: { createdAt: 'asc' },
     })
 
-    // Emit real-time update
-    io.to(`project:${projectId}`).emit('issue_created', issue)
-
-    res.status(201).json(issue)
+    res.json(comments)
   })
 )
 
-// Update issue
-router.put(
-  '/:id',
-  asyncHandler(async (req: AuthRequest, res) => {
-    const {
-      title,
-      description,
-      status,
-      priority,
-      assigneeId,
-      sprintId,
-      storyPoints,
-      dueDate,
-      labelIds,
-    } = req.body
-
-    const issue = await prisma.issue.update({
-      where: { id: req.params.id },
-      data: {
-        title,
-        description,
-        status,
-        priority,
-        assigneeId,
-        sprintId,
-        storyPoints,
-        dueDate: dueDate ? new Date(dueDate) : undefined,
-        labels: labelIds ? { set: labelIds.map((id: string) => ({ id })) } : undefined,
-      },
-      include: {
-        assignee: {
-          select: { id: true, name: true, avatar: true },
-        },
-        reporter: {
-          select: { id: true, name: true, avatar: true },
-        },
-        labels: true,
-      },
-    })
-
-    // Emit real-time update
-    io.to(`project:${issue.projectId}`).emit('issue_updated', issue)
-
-    res.json(issue)
-  })
-)
-
-// Add comment to issue
 router.post(
   '/:id/comments',
-  [body('content').trim().notEmpty().withMessage('Content is required')],
+  [
+    body('content').trim().notEmpty().withMessage('Comment content is required'),
+  ],
   asyncHandler(async (req: AuthRequest, res) => {
     const { content } = req.body
-
-    const issue = await prisma.issue.findUnique({
-      where: { id: req.params.id },
-      select: { projectId: true },
-    })
-
-    if (!issue) {
-      return res.status(404).json({ message: 'Issue not found' })
-    }
 
     const comment = await prisma.comment.create({
       data: {
         content,
         issueId: req.params.id,
-        authorId: req.user!.id,
-      },
-      include: {
-        author: {
-          select: { id: true, name: true, avatar: true },
-        },
+        userId: req.user!.id,
       },
     })
 
-    // Emit real-time update
-    io.to(`project:${issue.projectId}`).emit('comment_added', { issueId: req.params.id, comment })
-
+    io.to(req.params.id).emit('comment:created', comment)
     res.status(201).json(comment)
+  })
+)
+
+router.post(
+  '/',
+  [
+    body('title').trim().notEmpty().withMessage('Title is required'),
+    body('projectId').notEmpty().withMessage('Project ID is required'),
+    body('description').optional(),
+    body('type').optional(),
+    body('priority').optional(),
+    body('assigneeId').optional(),
+    body('parentId').optional(),
+  ],
+  asyncHandler(async (req: AuthRequest, res) => {
+    const { title, description, type, priority, assigneeId, parentId, projectId } = req.body
+
+    const issue = await prisma.issue.create({
+      data: {
+        title,
+        description: description || null,
+        type: type || 'task',
+        priority: priority || 'medium',
+        projectId,
+        creatorId: req.user!.id,
+        assigneeId: assigneeId || null,
+        parentId: parentId || null,
+      },
+    })
+
+    io.to(projectId).emit('issue:created', issue)
+    res.status(201).json(issue)
+  })
+)
+
+router.put(
+  '/:id',
+  asyncHandler(async (req: AuthRequest, res) => {
+    const { title, description, type, priority, status, assigneeId } = req.body
+
+    const issue = await prisma.issue.update({
+      where: { id: req.params.id },
+      data: {
+        ...(title && { title }),
+        ...(description && { description: description || null }),
+        ...(type && { type }),
+        ...(priority && { priority }),
+        ...(status && { status }),
+        ...(assigneeId && { assigneeId }),
+      },
+    })
+
+    io.to(req.params.id).emit('issue:updated', issue)
+    res.json(issue)
+  })
+)
+
+router.delete(
+  '/:id',
+  asyncHandler(async (req: AuthRequest, res) => {
+    await prisma.issue.delete({
+      where: { id: req.params.id },
+    })
+
+    io.to(req.params.id).emit('issue:deleted', { id: req.params.id })
+    res.status(204).send()
   })
 )
 

@@ -49,6 +49,18 @@ export const fetchCurrentUser = createAsyncThunk(
   }
 )
 
+export const updateUser = createAsyncThunk(
+  'auth/updateUser',
+  async (data: { id: string; name: string; email: string; timezone: string }): Promise<User> => {
+    const response = await api.patch<User>(`/users/${data.id}`, {
+      name: data.name,
+      email: data.email,
+      timezone: data.timezone,
+    })
+    return response.data
+  }
+)
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -100,6 +112,9 @@ const authSlice = createSlice({
       .addCase(fetchCurrentUser.rejected, (state) => {
         state.token = null
         localStorage.removeItem('token')
+      })
+      .addCase(updateUser.fulfilled, (state, action) => {
+        state.user = action.payload
       })
   },
 })

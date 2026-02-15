@@ -24,5 +24,8 @@
   "packageManager": "npm@10.2.4",
   "engines": {
     "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@dnd-kit/sortable": "^10.0.0"
   }
 }

@@ -12,19 +12,24 @@ model User {
   email         String    @unique
   password      String
   name          String
+  avatar        String?
+  timezone      String?
   role          String    @default("user")
   isActive      Boolean   @default(true)
   lastLoginAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  
+
   // Relations
   workspaces    WorkspaceMember[]
+  leadProjects  Project[] @relation("LeadProject")
   assignedIssues Issue[] @relation("AssignedIssues")
   createdIssues  Issue[] @relation("CreatedIssues")
   comments      Comment[]
   timeEntries   TimeEntry[]
-  
+  projectMembers ProjectMember[]
+  attachments   Attachment[]
+
   @@map("users")
 }
 
@@ -65,12 +70,32 @@ model Project {
   status      String   @default("active")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+  leadId      String?
+  visibility  String   @default("private")
+
   // Relations
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lead        User?    @relation("LeadProject", fields: [leadId], references: [id])
+  members     ProjectMember[]
   issues      Issue[]
-  
+  sprints     Sprint[]
+  labels      Label[]
+
   @@map("projects")
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      String   @default("member")
+  joinedAt  DateTime @default(now())
+  
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([projectId, userId])
+  @@map("project_members")
 }
 
 model Issue {
@@ -84,9 +109,10 @@ model Issue {
   assigneeId  String?
   creatorId   String
   parentId    String?
+  sprintId     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   // Relations
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assignee    User?    @relation("AssignedIssues", fields: [assigneeId], references: [id])
@@ -95,7 +121,9 @@ model Issue {
   subIssues   Issue[]  @relation("SubIssues")
   comments    Comment[]
   timeEntries TimeEntry[]
-  
+  attachments Attachment[]
+  sprint      Sprint?  @relation(fields: [sprintId], references: [id])
+
   @@map("issues")
 }
 
@@ -122,9 +150,57 @@ model TimeEntry {
   startedAt   DateTime
   endedAt     DateTime?
   createdAt   DateTime @default(now())
-  
+
   issue       Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@map("time_entries")
+}
+
+model Sprint {
+  id             String   @id @default(cuid())
+  name           String
+  goal           String?
+  startDate      DateTime?
+  endDate        DateTime?
+  status         String   @default("planning")
+  projectId      String
+  totalPoints    Int      @default(0)
+  completedPoints Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  issues         Issue[]
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("sprints")
+}
+
+model Label {
+  id         String  @id @default(cuid())
+  name       String
+  color      String
+  projectId  String?
+  createdAt  DateTime @default(now())
+
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("labels")
+}
+
+model Attachment {
+  id           String   @id @default(cuid())
+  filename     String
+  originalName String
+  mimeType    String
+  size         BigInt
+  url          String
+  issueId      String
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  issue        Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+
+  @@map("attachments")
 }

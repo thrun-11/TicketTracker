@@ -58,6 +58,21 @@ router.post(
       },
     })
 
+    // Create default workspace for the user
+    const workspaceSlug = `${user.name.toLowerCase().replace(/\s+/g, '-')}-${user.id.slice(-6)}`
+    const workspace = await prisma.workspace.create({
+      data: {
+        name: `${user.name}'s Workspace`,
+        slug: workspaceSlug,
+        members: {
+          create: {
+            userId: user.id,
+            role: 'owner',
+          },
+        },
+      },
+    })
+
     // Generate JWT
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },

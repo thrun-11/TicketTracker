@@ -4,10 +4,12 @@ export interface User {
   email: string
   name: string
   avatar?: string
-  timezone: string
+  timezone?: string
   role: 'admin' | 'owner' | 'developer' | 'reporter' | 'viewer'
-  createdAt: string
-  updatedAt: string
+  isActive: boolean
+  lastLoginAt?: Date
+  createdAt: Date
+  updatedAt: Date
 }
 
 // Workspace Types
@@ -16,9 +18,11 @@ export interface Workspace {
   name: string
   slug: string
   description?: string
-  avatar?: string
-  ownerId: string
   members: WorkspaceMember[]
+  _count?: {
+    members: number
+    projects: number
+  }
   createdAt: string
   updatedAt: string
 }
@@ -27,30 +31,37 @@ export interface WorkspaceMember {
   id: string
   userId: string
   workspaceId: string
-  role: 'admin' | 'member'
+  role: 'owner' | 'admin' | 'member'
   joinedAt: string
+  user?: {
+    id: string
+    name: string
+    email: string
+    avatar?: string
+  }
 }
 
 // Project Types
 export interface Project {
   id: string
   name: string
-  key: string
   description?: string
-  avatar?: string
   type: 'scrum' | 'kanban' | 'bug_tracking' | 'custom'
   visibility: 'public' | 'private'
   workspaceId: string
-  workflowId: string
   leadId?: string
+  lead?: User
   createdAt: string
   updatedAt: string
+  _count?: {
+    issues: number
+  }
 }
 
 // Issue Types
 export type IssueType = 'epic' | 'story' | 'task' | 'bug' | 'subtask'
 export type IssuePriority = 'critical' | 'high' | 'medium' | 'low'
-export type IssueStatus = 'todo' | 'in_progress' | 'review' | 'done'
+export type IssueStatus = 'backlog' | 'todo' | 'in_progress' | 'review' | 'done'
 
 export interface Issue {
   id: string
@@ -59,18 +70,27 @@ export interface Issue {
   type: IssueType
   priority: IssuePriority
   status: IssueStatus
+  columnId?: string
   assigneeId?: string
   assignee?: User
-  reporterId: string
-  reporter?: User
+  creatorId: string
+  creator?: User
   projectId: string
-  sprintId?: string
   parentId?: string
   storyPoints?: number
   dueDate?: string
   labels: Label[]
   createdAt: string
   updatedAt: string
+}
+
+export interface IssueFormData {
+  title: string
+  description?: string
+  type: IssueType
+  priority: IssuePriority
+  assigneeId?: string
+  projectId?: string
 }
 
 // Sprint Types
@@ -88,6 +108,13 @@ export interface Sprint {
   updatedAt: string
 }
 
+export interface SprintFormData {
+  name: string
+  goal?: string
+  startDate?: string
+  endDate?: string
+}
+
 // Label Types
 export interface Label {
   id: string
@@ -96,41 +123,21 @@ export interface Label {
   projectId?: string
 }
 
+export interface LabelFormData {
+  name: string
+  color: string
+}
+
 // Comment Types
 export interface Comment {
   id: string
   content: string
-  authorId: string
-  author?: User
+  userId: string
+  user?: User
   issueId: string
   parentId?: string
   createdAt: string
   updatedAt: string
-}
-
-// Workflow Types
-export interface Workflow {
-  id: string
-  name: string
-  projectId?: string
-  states: WorkflowState[]
-  transitions: WorkflowTransition[]
-}
-
-export interface WorkflowState {
-  id: string
-  name: string
-  category: 'todo' | 'in_progress' | 'done'
-  order: number
-  color?: string
-}
-
-export interface WorkflowTransition {
-  id: string
-  fromStateId: string
-  toStateId: string
-  conditions?: unknown
-  actions?: unknown
 }
 
 // Attachment Types
@@ -167,6 +174,12 @@ export interface TimeLog {
   description?: string
   spentDate: string
   createdAt: string
+}
+
+export interface TimeLogFormData {
+  timeSpent: string
+  description?: string
+  spentDate: string
 }
 
 // API Response Types

@@ -16,6 +16,10 @@ import userRoutes from './routes/users'
 import projectRoutes from './routes/projects'
 import issueRoutes from './routes/issues'
 import workspaceRoutes from './routes/workspaces'
+import sprintRoutes from './routes/sprints'
+import labelRoutes from './routes/labels'
+import attachmentRoutes from './routes/attachments'
+import timeLogRoutes from './routes/time-logs'
 
 dotenv.config()
 
@@ -49,6 +53,14 @@ app.use(limiter)
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 
+// Disable caching for API routes
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private')
+  res.setHeader('Pragma', 'no-cache')
+  res.setHeader('Expires', '0')
+  next()
+})
+
 // Logging
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'))
@@ -65,6 +77,10 @@ app.use('/api/users', authMiddleware, userRoutes)
 app.use('/api/workspaces', authMiddleware, workspaceRoutes)
 app.use('/api/projects', authMiddleware, projectRoutes)
 app.use('/api/issues', authMiddleware, issueRoutes)
+app.use('/api/sprints', authMiddleware, sprintRoutes)
+app.use('/api/labels', authMiddleware, labelRoutes)
+app.use('/api/attachments', authMiddleware, attachmentRoutes)
+app.use('/api/time-logs', authMiddleware, timeLogRoutes)
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
